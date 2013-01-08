@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<application xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns="http://www.zeroturnaround.com" 
+	xsi:schemaLocation="http://www.zeroturnaround.com http://www.zeroturnaround.com/alderaan/rebel-2_0.xsd" >
+	<classpath>
+		<dir name="/home/ddh/workspace/ExtFile/target/classes">
+		</dir>
+	</classpath>
+
+	<web>
+		<link target="/">
+			<dir name="/home/ddh/workspace/ExtFile/src/main/webapp">
+			</dir>
+		</link>
+	</web>
+
+</application>

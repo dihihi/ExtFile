@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Insert title here</title>
+<link type="text/css" href="../style/style.css" />
+<link rel="stylesheet" type="text/css" href="../scripts/syntaxhightlighter/styles/shCore.css" />
+<link rel="stylesheet" type="text/css" href="../scripts/syntaxhightlighter/styles/shThemeDefault.css" />
+<script language="javascript" type="text/javascript" src="../scripts/jquery/jquery-1.5.1.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shCore.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushXml.js"></script>
+<script type="text/javascript" src="../scripts/ckeditor/ckeditor.js"></script>
+<script type="text/javascript" src="../ckfinder/ckfinder.js"></script>
+<style type="text/css">
+body{
+	margin-top: 3px;
+	margin-bottom: 0;
+}
+.menu_item a  {
+    margin-left: 10px;
+}
+</style>
+<script type="text/javascript">
+	SyntaxHighlighter.all();
+	
+	//if new article
+    var newArticle = <#if request.getParameter('add')?default("")=="true">true<#else>false</#if>;
+    var tabPanelId = "${request.getParameter('tabPanelId')!''}";
+    //title origin value
+    var originTitle = "${article.title!''}"; 
+    
+    $(function() {
+    	if (newArticle) {
+    		$("#return_btn").hide();
+    	}
+    });
+    
+    //show tip
+    function showTip(content) {
+    	$("#save_result").show();
+        $("#save_result span").html(content);
+        window.setTimeout(function() {
+        	$("#save_result").hide(500);
+        }, 3000);
+    }
+    
+	//save
+	function save() {
+		var title = $.trim($("#title").val());
+		if (title == "") {
+			showTip("title cannt be empty!");
+			$("#title").focus();
+			return false;
+		}
+		$("#title").val(title);
+		
+		//CKEDITOR.instances.content.setData();
+		CKEDITOR.instances.content.updateElement();
+		
+		$.post("../web/article_save.do", $("#save_form").serialize(), function(req, status) {
+			var result = eval(req);
+			if (result[0].success){
+				showTip("Save success! " + new Date().toLocaleTimeString());
+			    
+				CKEDITOR.instances.content.resetDirty();
+				
+				if (newArticle) {
+					parent.refreshTree(result[0].id, title, result[0].categoryId);
+					parent.refreshTabPanel(tabPanelId, result[0].id, result[0].title);
+					newArticle = false;
+				} else if (originTitle != title) {
+					parent.setTitle(result[0].id, result[0].title);
+					parent.refreshTree(result[0].id, result[0].title, result[0].categoryId);
+					originTitle = title;
+				}
+				
+			} else {
+				alert('error');
+			}
+		}, "html");
+		return false;
+	}
+	
+	window.setInterval(function() {
+		if ( CKEDITOR.instances.content.checkDirty() ) {
+			parent.markHasChanged("${article.id!request.getParameter('tabPanelId')!''}");
+		} else {
+			parent.markUnChanged("${article.id!request.getParameter('tabPanelId')!''}");
+		}
+	}, 1000);
+	
+	$(function() {
+		parent.markUnChanged("${article.id!''}");
+	});
+	
+	//不起作用
+	function beforeUnload( e )
+	{
+	    if ( CKEDITOR.instances.editor1.checkDirty() )
+	            return e.returnValue = "You will lose the changes made in the editor.";
+	}
+
+	if ( window.addEventListener )
+	    window.addEventListener( 'beforeunload', beforeUnload, false );
+	else
+	    window.attachEvent( 'onbeforeunload', beforeUnload );
+</script>
+</head>
+<body>
+
+<div id="save_result">
+    <span style="color: #fa0"></span>
+</div>
+<form method="post" id="save_form">
+	<input type="hidden" name="id" value="${article.id!''}" />
+	<input type="hidden" name="article.categoryId" value="${request.getParameter('categoryId')?default('0')}" />
+	<div class="menu_item" style="display: inline;margin-right: 20px;">
+	    <a href="javascript:;" onclick="return save()" >
+	        <img src="../images/_save.png" alt="save" />
+	    </a>
+	    <a href="../web/article_view.do?id=${article.id!''}" id="return_btn">
+	        <img src="../images/return_from_previous.gif" alt="return back" />
+	    </a>
+	</div>
+	标题: <input id="title" name="article.title" value="${article.title!""}" style="width: 500px;" maxlength="256" />
+	<div class="content">
+	    <textarea rows="80" cols="40" id="content" name="article.content">${article.content?html}</textarea>
+	</div>
+</form>
+<script type="text/javascript">
+	var content = CKEDITOR.replace("content", {
+	    toolbar : [{ name: 'document', items : ['Preview' ] },
+	               { name: 'clipboard', items : [ 'PasteText','PasteFromWord','-','Undo','Redo' ] },
+	               { name: 'editing', items : [ 'Find','Replace' ] },
+	               { name: 'insert', items : [ 'File', 'Image','Flash','Table','HorizontalRule','SpecialChar','PageBreak','Iframe' ] },
+	               { name: 'paragraph', items : [ 'NumberedList','BulletedList','-','Outdent','Indent','-','Outdent','Indent','-','Blockquote','-','JustifyLeft','JustifyCenter','JustifyRight','JustifyBlock' ] },
+	               { name: 'links', items : [ 'Link','Unlink','Anchor' ] },
+	                       '/',
+	               { name: 'styles', items : [ 'Styles','Format','Font','FontSize' ] },
+	               { name: 'colors', items : [ 'TextColor','BGColor' ] },
+	               { name: 'basicstyles', items : [ 'Bold','Italic','Strike','-','RemoveFormat' ] },{ name: 'tools', items : [ 'Maximize', 'ShowBlocks','syntaxhighlight','Code', 'Source'] }
+	               ],
+	    skin : 'office2003',
+	    height: $(window).height()-120
+   });
+	
+	// Just call CKFinder.setupCKEditor and pass the CKEditor instance as the first argument.
+    // The second parameter (optional), is the path for the CKFinder installation (default = "/ckfinder/").
+    //CKFinder.setupCKEditor( content, "../ckfinder/" ) ;
+
+    // It is also possible to pass an object with selected CKFinder properties as a second argument.
+    CKFinder.setupCKEditor( content, { basePath : '../ckfinder/', skin : 'v1' } ) ;
+</script>
+
+</body>
+</html>

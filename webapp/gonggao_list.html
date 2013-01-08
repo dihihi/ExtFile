@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<base href="${basePath}" />
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link rel="stylesheet" type="text/css" href="/css/css.css" />
+<title>公告管理</title>
+<link rel="stylesheet" href="js/datepicker/datepicker.css" type="text/css" media="screen" title="Flora (Default)"/>
+<script src="js/datepicker/datepicker.js"></script>
+<script type="text/javascript">
+	$(function() {
+		$('#startDate').datepicker();
+		$('#endDate').datepicker();
+		
+		$('#selectAll').click(function() {
+			all_select($("input[name=ids]").get());
+		});
+		$('#selectOther').click(function() {
+			other_select($("input[name=ids]").get());
+		});
+		
+		$('#deleteSelected').click(function() {
+			var length = $("input[name=ids]:checked").length;
+			if (length < 1) {
+				alert("未选中任何记录！");
+				return false;
+			}
+			var flag = confirm("确认删除！");
+			if (flag) {
+				$("#del_form").submit();
+			}
+		});
+	});
+</script>
+</head>
+<body>
+<#include "/heard.html" >
+<div class="content">
+	<#include "/admin/left.html" ><script type="text/javascript">selectItem("公告发布管理")</script>
+	<div class="main">
+    	<div class="wel"><div class="weltop"><div class="topmid">>><a href="javascript:;">公告发布管理</a></div></div></div>
+    	<div class="welmid"><div class="mid"><div class="midmid">
+        	<!--主要内容区域-->
+            <div class="iframe">
+
+               <table border="0" cellspacing="0" cellpadding="0">
+			      <tr>
+			        <td valign="middle" style="width:18px; text-align:center;">&nbsp;</td>
+			        <td width="60" align="left" valign="middle" style="padding-left:5px;"> <input name="" type="button" class="btn_1"  onmouseover= "this.className='btn_2' " onmouseout= "this.className='btn_1' " value="新公告" onclick="location.href='admin/gonggao_add.do'" /></td>
+			      </tr>
+			    </table>
+			   
+				<form action="admin/gonggao.do">
+					 <table border="0" cellspacing="0" cellpadding="0">
+				      <tr>
+				      	<td width="60" height="35" align="right" valign="middle">标题：</td>
+				        <td valign="middle"><input type="text" name="title" class="text" /></td>
+				        <td width="55" height="35" align="right" valign="middle">时间：</td>
+				        <td valign="middle"><input name="startDate" type="text" readonly="readonly" id="startDate" size="12" class="text"  /></td>
+				        <td valign="middle" style="width:18px; text-align:center;">-</td>
+				        <td valign="middle"><input input name="endDate" type="text" readonly="readonly" id="endDate" size="12" class="text" /></td>        
+				        <td valign="middle">&nbsp;</td>
+				        <td width="60" align="left" valign="middle" style="padding-left:5px;"> <input name="" type="submit" class="btn_1"  onmouseover= "this.className='btn_2' " onmouseout= "this.className='btn_1' " value="查 询" /></td>
+				      </tr>
+				    </table>
+				</form>
+				
+				<form id="del_form" action="admin/gonggao_del.do" method="post">
+				    <table border="0" cellspacing="0" cellpadding="0" class="table">
+				   
+				      <tr>
+				        <th width="30">&nbsp;</th>
+				        <th>公告标题</th>
+				        <th>日期</th>
+				        <th>操作</th>
+				      </tr>
+					     <#if pageBean.result?exists && pageBean.result?size gt 0>
+							<#list pageBean.result as test>
+								<tr>
+									<td align="center">
+										<input type="checkbox" name="ids" value="${test.id}" />
+									</td>
+									<td >${test.title!""}
+									</td>
+									<td>
+										${test.dateAdd?string("yyyy-MM-dd")}
+									</td>
+									<td align="center"><a href="admin/gonggao_add.do?id=${test.id}">修改</a></td>
+								</tr>
+							</#list>
+							<#else>
+								<tr>
+									<td colspan="4">&nbsp;</td>
+								</tr>
+						 </#if>
+					
+					  <tr>
+					  	<td colspan="4">
+					  		<a href="javascript:;" id="selectAll">全选</a>
+							<a href="javascript:;" id="selectOther">反选</a>
+							<a href="javascript:;" id="deleteSelected">删除</a>
+					  	</td>
+					  </tr>
+				      <#if pageBean.pageToolBar!="">
+					  	  <tr>
+					      	<td colspan="4">${pageBean.pageToolBar}&nbsp;</td>
+					      </tr>
+					  </#if>
+				     
+				    </table>
+				</form>
+
+            </div>
+        	<!--内容区域结束-->
+        </div></div></div>
+    	<div class="welbtm"><div class="btm"><div class="btmmid"><img src="images/gif.gif" width="834" height="6"/></div></div></div>
+    </div>
+</div>
+<#include "/footer.html" >
+
+</body>
+</html>

@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Java Technology Note...</title>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="shortcut icon" href="../favicon.ico"/>
+    <link rel="stylesheet" href="../scripts/ext4/resources/css/ext-all.css"/>
+    <link rel="stylesheet" type="text/css" href="../scripts/ext4/ux/css/TabScrollerMenu.css" />
+    
+    <script type="text/javascript" src="../scripts/ext4/ext-all.js"></script>
+    <script type="text/javascript" src="../scripts/ext4/override.js"></script>
+    <style type="text/css">
+    /*不考虑节点的状态，同一用一种图标显示*/
+	 .your-iconCls{background-image: url(../scripts/ext4/resources/themes/images/default/tree/folder.gif)}
+	
+	
+	/*为节点的开闭状态和叶节点状态分别设置样式*/
+	 .your-iconCls{background-image: url(../scripts/ext4/resources/themes/images/default/tree/folder.gif)}
+	 .your-iconCls{background-image: url(../scripts/ext4/resources/themes/images/default/tree/folder.gif)}
+	 .your-iconCls{background-image: url(../scripts/ext4/resources/themes/images/default/tree/folder.gif)}
+    </style>
+    <script type="text/javascript">
+    Ext.BLANK_IMAGE_URL="../images/_.gif";
+    Ext.enableFx = false;
+    Ext.Loader.setConfig({enabled: true});
+
+    Ext.Loader.setPath('Ext.ux', '../scripts/ext4/ux/');
+
+    Ext.require([
+        'Ext.tip.QuickTipManager',
+        'Ext.window.Window',
+        'Ext.tab.Panel',
+        'Ext.ux.TabScrollerMenu',
+        'Ext.ux.TabReorderer',
+        'Ext.ux.TabCloseMenu',
+        'Ext.ux.GroupTabPanel'
+    ]);
+    
+    //change tab panel id
+    function refreshTabPanel(oldId, newId, title) {
+    	var p = Ext.getCmp('article_' + oldId);
+    	var index = tabPanel.items.indexOf(p);
+        
+        var panel = Ext.create('Ext.panel.Panel',{  
+            id: 'article_' + newId,
+            title : truncateStr(title),  
+            closable : true,  
+            iconCls : 'icon-activity',  
+            html : "<iframe name='article_"+ newId +"' src='../web/article_edit.do?id="+ newId +"' width='100%' height='100%'></iframe>"
+        });  
+        tabPanel.insert(index, panel);  
+        tabPanel.setActiveTab(panel); 
+        
+        tabPanel.remove(p);
+        
+    }
+    
+    //truncate string
+    function truncateStr(str, len) {
+    	if (arguments.length ==1 ) {
+    		len = 18;
+    	}
+    	if (!str) {return "";}
+    	if (str.length > len) {
+    		str = str.substr(0, len) + "..";
+    	} 
+    	return str;
+    }
+    
+    //更新成非叶子节点//先删掉,再插入,有没有其他更好的方式
+    function updateToNoNLeaf(node) {
+    	if (!node.isLeaf()) {
+    		return node;
+    	}
+    	var pNode = node.parentNode;
+    	var index = pNode.indexOf(node);
+    	var newNode = pNode.createNode({id: node.data.id, text: node.data.text,leaf: false, cls: 'folder',iconCls:'your-iconCls'});
+    	node.remove();
+    	node.updateInfo();
+    	pNode.insertChild(index, newNode);
+    	return newNode;
+    }
+    
+    //tree refresh
+    function refreshTree(id, title, categoryId) {
+	  	var pNode = store_dir.getNodeById(categoryId);
+	  	if (pNode.isLoaded()) {
+	  		pNode = updateToNoNLeaf(pNode);
+	  		var node = store_dir.getNodeById(id);
+	  		if (!node) {
+	  			pNode.insertChild(0, {id: id, text: title,leaf: true, cls: 'file'});
+	  		} else {
+	  			node.set("text", title);
+	  		}
+	  		pNode.expand();
+	  		tree_dir.getSelectionModel().deselectAll();
+	    	tree_dir.getSelectionModel().select(store_dir.getNodeById(id), true);
+	  	} else {
+	  		store_dir.load({
+	  		  node: store_dir.getNodeById(categoryId),
+	  		  callback: function() {
+	  			 pNode.expand();
+	  			tree_dir.getSelectionModel().deselectAll();
+		    	 tree_dir.getSelectionModel().select(store_dir.getNodeById(id), true);
+	  		  }
+	  	    });
+	  	}
+    }
+    
+    function setTitle(tabPanelId, title) {
+    	Ext.getCmp('article_' + tabPanelId).setTitle( truncateStr(title) );
+    }
+    
+    //mark title has changed
+    function markHasChanged(tabPanelId) {
+    	var title = Ext.getCmp('article_' + tabPanelId).title;
+    	if (title.charAt(0) != "*") {
+    		Ext.getCmp('article_' + tabPanelId).setTitle("*" + title);
+    	}
+    }
+  //mark title has changed
+    function markHasChanged(tabPanelId) {
+        var title = Ext.getCmp('article_' + tabPanelId).title;
+        if (title.charAt(0) != "*") {
+            Ext.getCmp('article_' + tabPanelId).setTitle("*" + title);
+        }
+    }
+  //mark title unchanged
+    function markUnChanged(tabPanelId) {
+        var title = Ext.getCmp('article_' + tabPanelId).title;
+        if (title.charAt(0) == "*") {
+            Ext.getCmp('article_' + tabPanelId).setTitle(title.substr(1));
+        }
+    }
+    
+    Ext.onReady(function() {
+    	Ext.tip.QuickTipManager.init();
+    	
+        store_dir = Ext.create('Ext.data.TreeStore', {
+            proxy: {
+                type: 'ajax',
+                url: '../web/category_tree.do'
+            },
+            root: {
+                text: 'ROOT',
+                id: '0',
+                expanded: true
+            }
+        });
+        
+        var addFolderWin = Ext.create('Ext.window.Window', {
+        	title: 'AddFolder',
+        	height: 150,
+        	width: 350,
+        	closeAction: 'hide',
+        	layout: 'fit',
+        	modal: true,
+        	items: {
+        		xtype: 'form',
+        		bodyPadding: 5,
+        		defaultType: 'textfield',
+        		items: [
+        		        {
+        		        	id: 'folder_name_input',
+        		        	name: 'name',
+        		        	labelWidth: 50,
+        		        	width: 300,
+        		        	lableAlign: 'right',
+        		            fieldLabel: 'Name',
+        		            allowBlank: false
+        		        },{
+        		        	id: 'folder_id',
+        		        	name: 'id',
+        		        	xtype: "hidden"
+        		        }],
+   		        buttons: [{
+       		            text: 'Reset',
+       		            handler: function() {
+       		                this.up('form').getForm().reset();
+       		            }
+       		        }, {
+       		            text: 'OK',
+       		            formBind: true, //only enabled once the form is valid
+       		            disabled: true,
+       		            handler: function() {
+       		            	var fileName = Ext.getCmp('folder_name_input').getValue();
+       		            	var pid = '0';
+                            var pidNode = tree_dir.getSelectionModel().selected.get(0);
+                            if (pidNode) {
+                                if (pidNode.data.cls == 'file') {
+                                	pidNode = pidNode.parentNode;
+                                    pid = pidNode.data.id;
+                                } else {
+                                    pid = pidNode.data.id;
+                                }
+                            }
+                            var id = Ext.getCmp('folder_id').getValue();
+                            Ext.Ajax.request({
+                                url: '../web/category_save.do',
+                                params: {
+                                    pid: pid,
+                                    name: fileName,
+                                    id: id
+                                },
+                                success: function(response){
+                                    var text = response.responseText;
+                                    var record = Ext.JSON.decode(text);
+                                    if (record.success) {
+                                    	if (id == "") { //add
+                                    		//插入节点
+										  	if (pidNode.isLoaded() && pidNode.childNodes.length > 0) {
+										  		//不重新load怎样改变一个节点显示为非叶子节点? uiupdate?
+										  		var newNode = pidNode.createNode({id: record.id, text: record.name, leaf: true,iconCls:'your-iconCls', cls: 'folder'});
+	                                    		pidNode.insertChild(0, newNode);
+	                                    		pidNode.expand();
+	                                    		window.setTimeout(function() {
+	                                    			tree_dir.getSelectionModel().deselectAll();
+	                                    			tree_dir.getSelectionModel().select(newNode, true);
+                                                }, 500);
+										    	
+										  	} else {
+										  		pidNode.set("leaf", false);
+										  		pidNode.set("iconCls", "");
+										  		store_dir.load({
+										  		  node: pidNode,
+										  		  callback: function() {
+										  			pidNode.expand();
+										  			window.setTimeout(function() {
+										  				tree_dir.getSelectionModel().deselectAll();
+										  				tree_dir.getSelectionModel().select(store_dir.getNodeById(record.id), true);
+	                                                }, 500);
+											    	
+										  		  }
+										  	    });
+										  	}
+										  	
+                                    	} else {//modify
+                                    		store_dir.getNodeById(id).set("text", record.name);//更新节点值
+                                    		store_dir.sync();
+                                    		tree_dir.getSelectionModel().deselectAll();
+                                    		tree_dir.getSelectionModel().select(store_dir.getNodeById(id));
+                                    	}
+                                    	/* var id = record.id;
+                                    	store_dir.load({
+                                            node: pidNode,
+                                            callback: function() {
+                                            	store_dir.sync();//怎么用sync
+                                                store_dir.getNodeById(pid).expand(false);
+                                                
+                                                //为什么不能及时读取节点?
+                                                window.setTimeout(function() {
+                                                	tree_dir.getSelectionModel().select(store_dir.getNodeById(id));
+                                                }, 500);
+                                            }
+                                        }); */
+                                        addFolderWin.hide();
+                                    } else {
+                                        if (record.exist) {
+                                            Ext.Msg.alert('Tip', "Exists");
+                                        } else {
+                                            Ext.Msg.alert('Tip', "Error");
+                                        }
+                                    }
+                                }
+                            });//end ajax
+       		            	
+       		            }
+       		        }]
+        	},
+        	listeners: { 
+        	    'show': function() {
+        	    	Ext.getCmp('folder_name_input').focus(true, true); 
+        	    } 
+        	}
+        });
+        
+        
+       tree_dir = Ext.create('Ext.tree.Panel', {
+    	    id: 'tree_dir',
+            store: store_dir,
+            split: true,
+            hideHeaders: true,
+            region: 'west',
+            animate: false,
+            animCollapse: false,
+            collapsible: true,
+            collapsed: true,
+            floatable: true,
+            width: 300,
+            hideCollapseTool: true,
+            useArrows: false,
+            rootVisible: true,
+            viewConfig: {
+			    //plugins: { ptype: 'treeviewdragdrop' }
+			},
+			selModel: {
+				allowDeselect: true,
+				mode: "MULTI"
+			},
+            tbar: [
+                   { xtype: 'button', 
+                	   icon : '../images/expand_all.gif',
+                       cls : 'x-btn-icon',
+                       text: '',
+                	   handler: function() {
+                		   tree_dir.expandAll();
+                	   }},'-',
+                   { xtype: 'button', 
+               		   icon : '../images/collapse_all.gif',
+                       cls : 'x-btn-icon',
+                       text: '',
+              		   handler: function() {
+              			 tree_dir.getRootNode().eachChild(function(node) {
+              				 node.collapse();
+              			 });
+              		   }},'-',
+                   { xtype: 'button',
+              			 icon : '../images/new_file.gif',
+                         cls : 'x-btn-icon',
+                         text: '',
+                	 handler: function() {//创建文件
+                		 var selected = tree_dir.getSelectionModel().selected;
+                		 if (!selected || selected.length < 1) {
+                			 //Ext.Msg.alert('Tip', 'Not selected.');
+                			 //return;
+                		 }
+                		 var pid = '0';
+                		 var pidNode = selected.get(0);
+                         if (pidNode) {
+                             if (pidNode.data.cls == 'file') {
+                                 var pNode = pidNode.parentNode;
+                                 pid = pNode.data.id;
+                             } else {
+                                 pid = pidNode.data.id;
+                             }
+                         }
+                         var millSeconds = new Date().getTime();
+                         var panel = Ext.create('Ext.panel.Panel',{
+                             id: 'article_' + millSeconds,
+                             title : 'untitled',
+                             closable : true,  
+                             iconCls : 'icon-activity',
+                             html : "<iframe name='article_new" +"' src='../web/article_edit.do?id=&add=true&tabPanelId="+ millSeconds +"&categoryId="+ pid +"' width='100%' height='100%'></iframe>"
+                         });  
+                         tabPanel.add(panel);  
+                         tabPanel.setActiveTab(panel); 
+                         
+                	 }
+                   },'-',
+                   { xtype: 'button',
+                	   icon : '../images/new_folder.gif',
+                       cls : 'x-btn-icon',
+                       text: '',
+                       handler: function() {
+                           var selected = tree_dir.getSelectionModel().selected;
+                           if (selected.length > 1) {
+                               Ext.Msg.alert('Tip', 'Plesae select one item!');
+                               return;
+                           }
+                           addFolderWin.setTitle("AddFolder");
+                           Ext.getCmp('folder_id').setValue("");
+                           addFolderWin.show();
+                       }
+                     },'-',
+                     { xtype: 'button',
+                         icon : '../images/_rename.gif',
+                         cls : 'x-btn-icon',
+                         text: '',
+                         handler: function() {
+                        	 var selected = tree_dir.getSelectionModel().selected;
+                             if (selected.length != 1) {
+                            	 Ext.Msg.alert('Tip', 'Plesae select one item!');
+                                 return;
+                             }
+                             var node = selected.get(0);
+                             if (node.data.cls == 'file') {
+                                 return;
+                             }
+                             addFolderWin.setTitle("EditFolder");
+                             Ext.getCmp('folder_name_input').setValue(node.data.text);
+                             Ext.getCmp('folder_id').setValue(node.data.id);
+                             addFolderWin.show();
+                         }
+                       },'-',
+                   { xtype: 'button',
+                    	 icon : '../images/folder_delete.png',
+                         cls : 'x-btn-icon',
+                         text: '',
+                     handler: function() {
+	                   	var selected = tree_dir.getSelectionModel().selected;
+                        if (!selected || selected.length < 1) {
+                            Ext.Msg.alert('Tip', 'Not selected.');
+                            return;
+                        }
+                        var node = selected.get(0);
+                        if (node.data.cls == 'file') {
+                            return;
+                        } 
+                    	Ext.Msg.confirm("Tip", "Be sure delete?", function(btn, text) {
+                    		if (btn == 'yes') {
+                                   	Ext.Ajax.request({
+                                       url: '../web/category_del.do',
+                                       params: {
+                                           id: node.data.id
+                                       },
+                                       success: function(response){
+                                           var text = response.responseText;
+                                           var record = Ext.JSON.decode(text);
+                                           if (record.success) {
+                                        	   var pNode = node.parentNode;
+                                        	   node.remove(true);
+                                        	   tree_dir.getSelectionModel().deselectAll();
+                                        	   tree_dir.getSelectionModel().select(pNode);
+                                        	   //自动更新了父节点是否为叶子节点,用的triggerUIUpdate,上面更新为非叶子节点是否也能调用这个方法?
+                                           } else {
+                                           	Ext.Msg.alert('Tip', "Error");
+                                           }
+                                       }
+                                   });//end ajax	
+                    		}
+                    	})
+                    }},'-',
+                    { xtype: 'button',
+                        icon : '../images/reload.gif',
+                        cls : 'x-btn-icon',
+                        text: '',
+                        handler: function() {
+                        	var selected = tree_dir.getSelectionModel().selected;
+                            if (!selected || selected.length < 1) {
+                                return;
+                            }
+                            var node = selected.get(0);
+                            if (node.data.cls == 'file') {
+                                return;
+                            } 
+                            var id = node.data.id;
+                       	   store_dir.load({
+                      		  node: store_dir.getNodeById(node.data.id),
+                      		  callback: function() {
+                      			  store_dir.sync();
+                      			  store_dir.getNodeById(id).expand();
+                      			  tree_dir.getSelectionModel().deselectAll();
+                      			  window.setTimeout(function() {tree_dir.getSelectionModel().select(store_dir.getNodeById(id), true);}, 500)
+                      		  }
+                      	   });
+                        }
+                      }
+                 ],
+            listeners: {
+            	itemcontextmenu: function(view, record, item, index, event){
+                    event.stopEvent();
+            		var menu1 = new Ext.menu.Menu({
+            	        items: [
+            	                {
+            	                text: 'Move to...',
+            	                handler: function() {
+            	                	alert('c');
+            	                }
+            	            }
+            	        ]
+            	    });
+
+                    menu1.showAt(event.getXY());
+                },
+                itemclick: {
+                    fn: function(view, record, item, index, event) {
+                    	if (record.data.cls === 'file') {
+                    		var p = Ext.getCmp('article_' + record.data.id);
+                            if (p) {
+                                tabPanel.setActiveTab(p); 
+                            }
+                    	} else {
+                    		if (record.data.id=="0") {return;}
+                    		if (record.isExpandable()) {
+                    			if (!record.isExpanded()) {
+                    				//record.expand();
+                    			}
+                    		}
+                    	}
+                    }
+                },
+                itemdblclick: function(view, record, item, index, e, eOpts) {
+                	if (record.data.cls=='file') {
+                		var p = Ext.getCmp('article_' + record.data.id);
+                        if (p) {
+                            tabPanel.setActiveTab(p); 
+                            return;
+                        }
+                		var panel = Ext.create('Ext.panel.Panel',{  
+                			id: 'article_' + record.data.id,
+                            title : truncateStr(record.data.text),  
+                            closable : true,  
+                            iconCls : 'icon-activity',  
+                            html : "<iframe name='article_"+ record.data.id +"' src='../web/article_view.do?id="+ record.data.id +"' width='100%' height='100%'></iframe>"
+                        });  
+                		tabPanel.add(panel);  
+                		tabPanel.setActiveTab(panel); 
+                        
+                	}
+                }
+            }
+        });
+        
+        Ext.define('File', {
+           extend: 'Ext.data.Model',
+           fields: ['filename', 'filesize', 'filedate']
+        });
+        
+        store_file = Ext.create('Ext.data.Store', {
+            model: 'File',
+            proxy: {
+              type: 'ajax',
+              url: 'get_file.php',
+              reader: {
+                  type: 'json',
+                  root: 'files'
+              }
+            }
+        });      
+        
+        grid_file = Ext.create('Ext.grid.Panel', {
+            title: '',
+            region: 'center',
+            store: store_file,
+            buttons:["ADD"],
+            columns: [
+                { header: 'Name', width: 170, dataIndex: 'filename' },
+                { header: 'Size', width: 100, dataIndex: 'filesize' },
+                { header: 'Last Modified', width: 200, dataIndex: 'filedate' }
+            ],
+            viewConfig: {
+                stripeRows: true
+            }
+        });
+
+        tabPanel = Ext.create('Ext.tab.Panel', {
+            items: [ {
+	                title: 'Bar',
+	                html: '<iframe src="main.jsp" height="100%" width="100%"></iframe>',
+	                tabConfig: {
+	                    title: 'Custom Title',
+	                    tooltip: 'A button tooltip'
+	                }
+	            }/* ,{
+	                title: 'Ajax Tab 1',
+	                loader: {
+	                    url: 'get_file.jsp',
+	                    contentType: 'html',
+	                    loadMask: true,
+	                    script: true
+	                },
+	                listeners: {
+	                    activate: function(tab) {
+	                        tab.loader.load();
+	                    }
+	                }
+	            },{
+	                title: 'Ajax Tab 2',
+	                loader: {
+	                    url: 'baidu.com',
+	                    contentType: 'html',
+	                    autoLoad: true,
+	                    params: 'foo=123&bar=abc'
+	                }
+	            } */],
+	             plugins: [Ext.create('Ext.ux.TabScrollerMenu', {
+		                 maxText: 20
+		             }),
+		             Ext.create('Ext.ux.TabCloseMenu', {
+		                 closeTabText: '关闭当前',
+		                 closeOthersTabsText: '关闭其他',
+		                 closeAllTabsText: '关闭所有',
+		                 extraItemsTail: [
+		                             '-',
+		                             {
+		                                 text: '可关闭',
+		                                 checked: true,
+		                                 hideOnClick: true,
+		                                 handler: function (item) {
+		                                     currentItem.tab.setClosable(item.checked);
+		                                 }
+		                             }
+		                         ],
+		                 listeners: {
+		                     aftermenu: function () {
+		                         currentItem = null;
+		                     },
+		                     beforemenu: function (menu, item) {
+		                         var menuitem = menu.child('*[text="可关闭"]');
+		                         currentItem = item;
+		                         menuitem.setChecked(item.closable);
+		                     }
+		                 }
+		             }),
+		             Ext.create('Ext.ux.TabReorderer')], 
+	            listeners:{
+	            	afterrender:function(tab){
+	            	      var tabBar = tab.down("tabbar");
+	            	      tab.mon(tabBar.el, {
+	            	      	  scope: this,
+		            	      dblclick:function(){
+		            	    	  tabPanel.remove(tab.getActiveTab());
+		            	      },
+	            	      	  delegate: 'div.x-tab'
+	            	     });
+	            	      //双击关闭标签
+	            	      tab.mon(tabBar.el, {
+	            	      	  scope: this,
+		            	      dblclick:function(){
+		            	    	  tabPanel.remove(tab.getActiveTab());
+		            	      },
+	            	      	  delegate: 'div.x-tab'
+	            	     });
+	            	 }
+				},
+            region: 'center',
+        });
+
+        
+		new Ext.Viewport({
+				layout : "border",
+				items : [ /* {
+					region : "north",
+					height : 50,
+					title : "顶部面板"
+				},
+				{
+					region : "south",
+					height : 50,
+					title : "底部面板"
+				}, */
+			   tabPanel,tree_dir
+				],
+				listeners: {
+					render: function() {
+						//为什么要先collapse一下才能保持滚动位置?
+						window.setTimeout(function() {tree_dir.expand();tree_dir.collapse();}, 10);
+					}
+				}
+			});
+
+			/* win = Ext.create('widget.window', {
+				title : 'ExtJS Simple File Browser',
+				width : 920,
+				height : 600,
+				layout : 'border',
+				bodyStyle : 'padding: 5px;',
+				items : [ tree_dir, grid_file ]
+			});
+
+			win.show(); */
+		});
+	</script>
+</head>
+<body onbeforeunload="return '您确定要离开“当前页面”吗？'">
+</body>
+</html>

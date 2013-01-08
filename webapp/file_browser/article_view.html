@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Insert title here</title>
+<link type="text/css" href="../style/style.css" />
+<script language="javascript" type="text/javascript" src="../scripts/jquery/jquery-1.5.1.js"></script>
+<link rel="stylesheet" type="text/css" href="../scripts/syntaxhightlighter/styles/shCore.css" />
+<link rel="stylesheet" type="text/css" href="../scripts/syntaxhightlighter/styles/shThemeDefault.css" />
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shCore.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushBash.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushJScript.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushJava.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushCss.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushSql.js"></script>
+<script language="javascript" type="text/javascript" src="../scripts/syntaxhightlighter/scripts/shBrushXml.js"></script>
+<style type="text/css">
+.menu_item a  {
+    margin-left: 10px;
+    text-decoration: none;
+}
+#back_top {
+    position: fixed;right: 30px;bottom: 30px;
+}
+#back_top a{
+    text-decoration: none;
+    display: block;
+    /* transition */
+    -webkit-transition: 1s;
+    -moz-transition: 1s;
+    transition: 1s;
+}
+#back_top a:hover {
+    background-color: #ff0;
+}
+</style>
+<script type="text/javascript">
+	SyntaxHighlighter.all();
+	
+	$(function() {
+		$("#back_top").click(function() {
+			$(document).scrollTop(0);
+		});
+	});
+	
+	function del() {
+		if (!confirm('确认删除?')) {
+			return false;
+		}
+		$.get("../web/article_dell.do?id=${article.id}", {}, function(req, status) {
+			var result = eval(req);
+			if (result[0].success){
+				showTip("Save success! " + new Date().toLocaleTimeString());
+				
+			} else {
+				alert('error');
+			}
+		}, "html");
+	}
+</script>
+</head>
+<body>
+<h3><div class="menu_item" style="display: inline;margin-right: 10px;">
+<a href="javascript:;" onclick="return del();" >&nbsp;</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <a href="../web/article_edit.do?id=${article.id}" >
+        <img src="../images/_edit.png" alt="edit" />
+    </a>
+</div>${article.title!""}</h3>
+<div class="content">
+    ${article.content!""}
+</div>
+<div id="back_top">
+    <a href="javascript:;">
+        <img src="../images/scroll_to_top.png" alt="" />
+    </a>
+</div>
+</body>
+</html>
